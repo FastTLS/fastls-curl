@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   GOWORK: 'off'
@@ -42,11 +43,14 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           TIER: ${{ inputs.test_tier || 'auto' }}
+          GH_TOKEN: ${{ github.token }}
         run: python scripts/test_plan.py --base "$BASE" --tier "$TIER" --output test-plan.json --github-output "$GITHUB_OUTPUT"
       - run: python scripts/check_docs.py
       - name: Check scope selection
         if: steps.plan.outputs.tier != 'docs'
-        run: python scripts/test_test_plan.py
+        run: |
+          python scripts/test_test_plan.py
+          python scripts/test_release.py
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
         with:
           name: test-plan
@@ -77,9 +81,11 @@ jobs:
           python-version: '3.11'
       - run: go mod verify
       - run: go test ./... -count=1 -timeout=3m
+        if: needs.plan.outputs.tier != 'identity'
       - run: go vet ./...
+        if: needs.plan.outputs.tier != 'identity'
       - name: Build once, package and verify installed bytes
-        run: python scripts/package.py --target ${{ matrix.target }}
+        run: python scripts/package.py --target ${{ matrix.target }} --release
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: fcurl-${{ matrix.target }}

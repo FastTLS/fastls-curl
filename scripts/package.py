@@ -46,11 +46,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--version", default="0.1.0-dev")
+    parser.add_argument("--version", default=(ROOT / "VERSION").read_text().strip())
     parser.add_argument("--target", help="Expected native GOOS-GOARCH")
+    parser.add_argument("--release", action="store_true", help="Require a clean tagged-version candidate")
     args = parser.parse_args()
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?", args.version):
         parser.error("invalid version")
+    if args.release:
+        if command("git", "status", "--porcelain", "--untracked-files=normal"):
+            raise SystemExit("release candidates require a clean source tree")
+        if args.version != (ROOT / "VERSION").read_text().strip():
+            raise SystemExit("release version must match VERSION")
+        source = (ROOT / "internal/cli/run.go").read_text()
+        if f'var Version = "{args.version}"' not in source:
+            raise SystemExit("source version must match the release candidate")
     env = dict(os.environ, GOWORK="off", CGO_ENABLED="0")
     target_info = json.loads(command("go", "env", "-json", "GOOS", "GOARCH", env=env))
     goos, goarch = target_info["GOOS"], target_info["GOARCH"]
@@ -68,7 +77,7 @@ def main():
         subprocess.run(["go", "build", "-trimpath", "-buildvcs=true", "-ldflags",
                         f"-X github.com/FastTLS/fastls-curl/internal/cli.Version={args.version}",
                         "-o", str(binary), "./cmd/fcurl"], cwd=ROOT, env=env, check=True)
-        for file in ["LICENSE", "NOTICE", "README.md", "COMPATIBILITY.md", "ROADMAP.md", "VALIDATION.md"]:
+        for file in ["LICENSE", "NOTICE", "README.md", "COMPATIBILITY.md", "ROADMAP.md", "VALIDATION.md", "INVOCATION_PLAN.md", "RELEASE.md", "VERSION"]:
             shutil.copy2(ROOT / file, staging / file)
         deps = modules()
         for module in deps:
@@ -96,6 +105,7 @@ def main():
         manifest = {
             "version": args.version, "target": target, "binary_sha256": sha,
             "source_commit": command("git", "rev-parse", "HEAD"),
+            "source_tree": command("git", "rev-parse", "HEAD^{tree}"),
             "source_dirty": bool(command("git", "status", "--porcelain", "--untracked-files=normal")),
             "toolchain": command("go", "version"),
             "go_mod_sha256": hashlib.sha256((ROOT / "go.mod").read_bytes()).hexdigest(),

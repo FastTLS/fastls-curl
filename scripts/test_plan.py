@@ -45,10 +45,20 @@ def main():
     rank = {"docs": 0, "patch": 1, "minor": 2}
     if args.tier != "auto" and rank[args.tier] > rank[tier]:
         tier, reason = args.tier, reason + "; raised by explicit input"
+    evidence = None
+    if tier != "docs" and args.tier == "auto" and (ROOT / "RELEASE_VALIDATION.json").exists():
+        from release import metadata_equivalent, verify_baseline
+        config = json.loads((ROOT / "RELEASE_VALIDATION.json").read_text())
+        if metadata_equivalent("HEAD", config["runtime_head"]):
+            # A successful five-platform + race/resource run must be verified,
+            # not merely claimed in a local file, before narrowing this scope.
+            evidence = verify_baseline(config)
+            tier, reason = "identity", "Verified unchanged production/compiler inputs; run five native identity/install checks"
     matrix = [] if tier == "docs" else TARGETS[:2] if tier == "patch" else TARGETS
     result = {"tier": tier, "reason": reason, "base": base, "paths": paths,
               "matrix": {"include": matrix}, "resource": tier == "minor",
-              "race": tier == "minor", "performance_certification": False}
+              "race": tier == "minor", "performance_certification": False,
+              "reused_runtime_evidence": evidence}
     text = json.dumps(result, indent=2)
     print(text)
     if args.output:

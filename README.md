@@ -1,6 +1,6 @@
 # fastls-curl
 
-基于 [FastTLS/fastls](https://github.com/FastTLS/fastls) 的 HTTP 命令行工具，命令名 **`fcurl`**。支持常用 curl 参数、TLS/HTTP 指纹、代理与流式下载。当前为 `0.1.0-dev`，尚未发布正式版。
+基于 [FastTLS/fastls](https://github.com/FastTLS/fastls) 的 HTTP 命令行工具，命令名 **`fcurl`**。支持常用 curl 参数、TLS/HTTP 指纹、代理与流式下载。首个正式版本为 `v0.1.0`；可下载的正式产物以 [GitHub Releases](https://github.com/FastTLS/fastls-curl/releases) 为准。
 
 ## 安装与构建
 
@@ -11,7 +11,7 @@ go build -trimpath -o dist/fcurl ./cmd/fcurl
 ./dist/fcurl --version
 ```
 
-Windows 将输出文件改为 `dist/fcurl.exe`。开发分支尚未合入默认分支时，请先检出该分支；正式标签发布前不提供 `@latest` 安装承诺。
+Windows 将输出文件改为 `dist/fcurl.exe`。也可从 GitHub Releases 下载对应平台压缩包与 SHA256SUMS，核对摘要后解包使用。安装位置、源码标签安装和 Actions 发布流程见 [RELEASE.md](RELEASE.md)。
 
 ## 使用
 

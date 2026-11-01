@@ -24,7 +24,7 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
-var Version = "0.1.0-dev"
+var Version = "0.1.0"
 
 const help = `fcurl - HTTP requests with fastls TLS and HTTP fingerprints
 Usage: fcurl [options] <http(s)://URL>
