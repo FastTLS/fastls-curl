@@ -50,6 +50,8 @@ fcurl -b 'a=1' -b 'b=2' https://example.com
 
 Cookie 文件严格采用七字段、TAB 分隔的 Netscape 格式，保留 host-only/subdomain、Path、Secure、HttpOnly、会话 Cookie、过期秒数；支持 #HttpOnly_ 前缀。域匹配和公共后缀校验复用 Go 标准 cookiejar。不持久化已过期或已删除的 Cookie。输入文件上限 4 MiB，行上限 64 KiB；无效文件、丢失文件或无效域作用域返回 26，与 curl 忽略某些无效输入的行为不同。
 
+Cookie 文件按创建次序从新到旧保存，导入时恢复该次序，避免同一路径下的同名主机/域 Cookie 在重载后换位。更新保留原次序，删除后重建获得新次序；同一文件重复身份采用最后一条值。v0.2.0 原始发行的文件按字典序保存，缺失的历史创建次序无法从旧文件恢复。
+
 `-c/--cookie-jar` 输出 Netscape 文件，同一次调用允许 `-b/-c` 指向同一个文件。写入同目录临时文件后原子替换，Unix 文件模式为 0600；Windows 使用平台自身的继承权限。Jar 保存与响应正文输出分开，不能和 `-o/-D` 指向同一个文件。暂不支持 `-c -`，避免混入正文 stdout。
 
 HTTP 错误、网络失败或取消后仍保存已收到的有效 Cookie。Jar 写入失败返回 23，并保留已有请求错误作为原因；不会仅告警后返回成功。临时写入失败不截断旧 Jar。Netscape 格式不表示 SameSite/Partitioned 等完整浏览器存储语义，本工具也不宣称实现完整浏览器 Cookie 策略。

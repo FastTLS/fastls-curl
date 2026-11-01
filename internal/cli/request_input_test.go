@@ -56,6 +56,8 @@ func TestSingleRequestCurlDifferential(t *testing.T) {
 		{"--data-urlencode", "name@" + data, s.URL},
 		{"--data-urlencode", "@" + data, s.URL},
 		{"--data-urlencode", "name=value@literal", s.URL},
+		{"--data-urlencode", "a@b=c", s.URL},
+		{"--data-urlencode", "q@note=one.txt", s.URL},
 		{"--data-urlencode", "k=", "--data-urlencode", "k=next", s.URL},
 		{"--data-raw", "@literal", s.URL},
 		{"-H", "@" + headers, s.URL},

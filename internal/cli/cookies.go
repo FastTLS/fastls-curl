@@ -23,11 +23,13 @@ import (
 type storedCookie struct {
 	cookie   http.Cookie
 	hostOnly bool
+	sequence uint64
 }
 type persistentJar struct {
-	jar     *cookiejar.Jar
-	mu      sync.Mutex
-	records map[string]storedCookie
+	jar          *cookiejar.Jar
+	mu           sync.Mutex
+	records      map[string]storedCookie
+	nextSequence uint64
 }
 
 func newPersistentJar() *persistentJar {
@@ -111,7 +113,13 @@ func (j *persistentJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 			continue
 		}
 		c.MaxAge = 0
-		j.records[key] = storedCookie{c, hostOnly}
+		sequence := j.nextSequence
+		if old, exists := j.records[key]; exists {
+			sequence = old.sequence
+		} else {
+			j.nextSequence++
+		}
+		j.records[key] = storedCookie{cookie: c, hostOnly: hostOnly, sequence: sequence}
 	}
 }
 
@@ -122,6 +130,12 @@ func (j *persistentJar) load(path string, stdin io.Reader) error {
 	}
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	scanner.Buffer(make([]byte, 4096), 64<<10)
+	type importedCookie struct {
+		url    *url.URL
+		cookie *http.Cookie
+	}
+	var imported []importedCookie
+	positions := make(map[string]int)
 	line := 0
 	for scanner.Scan() {
 		line++
@@ -165,10 +179,22 @@ func (j *persistentJar) load(path string, stdin io.Reader) error {
 		if strings.Contains(domain, ":") {
 			u.Host = "[" + domain + "]"
 		}
-		j.SetCookies(u, []*http.Cookie{c})
+		// Replacements retain their original position, but the last value wins.
+		key := domain + "\n" + c.Path + "\n" + c.Name
+		if position, exists := positions[key]; exists {
+			imported[position] = importedCookie{u, c}
+		} else {
+			positions[key] = len(imported)
+			imported = append(imported, importedCookie{u, c})
+		}
 	}
 	if e = scanner.Err(); e != nil {
 		return fail(26, "cannot parse cookie file: %v", e)
+	}
+	// Netscape jars written by curl list newer cookies first. Restore creation
+	// order so equal-path, same-name cookies keep their precedence on reload.
+	for i := len(imported) - 1; i >= 0; i-- {
+		j.SetCookies(imported[i].url, []*http.Cookie{imported[i].cookie})
 	}
 	return nil
 }
@@ -191,7 +217,10 @@ func (j *persistentJar) save(path string) error {
 	for key := range j.records {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	// Match curl's newest-first file order, independently of domain/name spelling.
+	sort.Slice(keys, func(a, b int) bool {
+		return j.records[keys[a]].sequence > j.records[keys[b]].sequence
+	})
 	now := time.Now()
 	for _, key := range keys {
 		r := j.records[key]
