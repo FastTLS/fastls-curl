@@ -12,6 +12,10 @@ import (
 
 type dataPart struct{ kind, value string }
 type options struct {
+	get, basic                                                    bool
+	user, bearer, referer                                         *string
+	cookies                                                       []string
+	cookieJar                                                     string
 	userAgent                                                     *string
 	url, method, output, dump, proxy, ca, proxyCA                 string
 	profile, profileFile, ja3, ja4r                               string
@@ -30,7 +34,9 @@ var valueOptions = map[string]bool{
 	"--cacert": true, "--proxy-cacert": true, "--profile": true,
 	"--profile-file": true, "--ja3": true, "--ja4r": true,
 	"--max-redirs": true, "--connect-timeout": true, "--max-time": true,
-	"--url": true,
+	"--url":      true,
+	"--data-raw": true, "--data-urlencode": true, "--user": true,
+	"--oauth2-bearer": true, "--referer": true, "--cookie": true, "--cookie-jar": true,
 }
 var shortOptions = map[byte]string{
 	'X': "--request", 'H': "--header", 'A': "--user-agent", 'd': "--data",
@@ -38,6 +44,7 @@ var shortOptions = map[byte]string{
 	'i': "--include", 'I': "--head", 'L': "--location", 'k': "--insecure",
 	's': "--silent", 'S': "--show-error", 'v': "--verbose", 'f': "--fail",
 	'h': "--help", 'V': "--version",
+	'G': "--get", 'u': "--user", 'e': "--referer", 'b': "--cookie", 'c': "--cookie-jar",
 }
 
 func parse(args []string) (options, error) {
@@ -97,7 +104,7 @@ func parse(args []string) (options, error) {
 			}
 			if v == "" {
 				switch name {
-				case "--request", "--profile", "--profile-file", "--ja3", "--ja4r", "--cacert", "--proxy-cacert", "--output", "--dump-header", "--url":
+				case "--request", "--profile", "--profile-file", "--ja3", "--ja4r", "--cacert", "--proxy-cacert", "--output", "--dump-header", "--url", "--cookie-jar":
 					return o, fmt.Errorf("%s requires a nonempty value", name)
 				}
 			}
@@ -108,8 +115,22 @@ func parse(args []string) (options, error) {
 				o.headers = append(o.headers, v)
 			case "--user-agent":
 				o.userAgent = &v
-			case "--data", "--data-binary", "--json":
+			case "--data", "--data-binary", "--json", "--data-raw", "--data-urlencode":
 				o.data = append(o.data, dataPart{name, v})
+			case "--get":
+				o.get = true
+			case "--basic":
+				o.basic = true
+			case "--user":
+				o.user = &v
+			case "--oauth2-bearer":
+				o.bearer = &v
+			case "--referer":
+				o.referer = &v
+			case "--cookie":
+				o.cookies = append(o.cookies, v)
+			case "--cookie-jar":
+				o.cookieJar = v
 			case "--output":
 				o.output = v
 			case "--dump-header":
@@ -196,7 +217,7 @@ func parse(args []string) (options, error) {
 	if o.fail && o.failBody {
 		return o, fmt.Errorf("--fail and --fail-with-body are mutually exclusive")
 	}
-	if o.head && len(o.data) > 0 {
+	if o.head && len(o.data) > 0 && !o.get {
 		return o, fmt.Errorf("--head cannot be combined with request data")
 	}
 	if o.method != "" && !validToken(o.method) {
@@ -213,6 +234,27 @@ func parse(args []string) (options, error) {
 	}
 	if jsonMode && otherMode {
 		return o, fmt.Errorf("--json cannot be mixed with other data modes")
+	}
+	if jsonMode && o.get {
+		return o, fmt.Errorf("--get cannot be combined with --json; use --data-urlencode")
+	}
+	if o.user != nil && o.bearer != nil {
+		return o, fmt.Errorf("Basic and Bearer authentication are mutually exclusive")
+	}
+	if o.basic && o.bearer != nil {
+		return o, fmt.Errorf("--basic cannot be combined with --oauth2-bearer")
+	}
+	if o.user != nil && !strings.Contains(*o.user, ":") {
+		return o, fmt.Errorf("--user requires user:password; interactive prompts are unsupported")
+	}
+	if o.cookieJar == "-" {
+		return o, fmt.Errorf("--cookie-jar requires a file; stdout is reserved for response output")
+	}
+	if o.referer != nil && strings.HasSuffix(*o.referer, ";auto") {
+		return o, fmt.Errorf("automatic Referer is unsupported")
+	}
+	if stdinConsumers(o) > 1 {
+		return o, fmt.Errorf("standard input can have only one consumer")
 	}
 	if o.url == "" && !o.help && !o.version && !o.list {
 		return o, fmt.Errorf("a URL is required (see --help)")

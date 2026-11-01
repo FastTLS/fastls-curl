@@ -77,7 +77,7 @@ def main():
         subprocess.run(["go", "build", "-trimpath", "-buildvcs=true", "-ldflags",
                         f"-X github.com/FastTLS/fastls-curl/internal/cli.Version={args.version}",
                         "-o", str(binary), "./cmd/fcurl"], cwd=ROOT, env=env, check=True)
-        for file in ["LICENSE", "NOTICE", "README.md", "COMPATIBILITY.md", "ROADMAP.md", "VALIDATION.md", "INVOCATION_PLAN.md", "RELEASE.md", "VERSION"]:
+        for file in ["LICENSE", "NOTICE", "README.md", "COMPATIBILITY.md", "ROADMAP.md", "VALIDATION.md", "INVOCATION_PLAN.md", "RELEASE.md", "VERSION", "DEVELOPMENT_V0.2.md"]:
             shutil.copy2(ROOT / file, staging / file)
         deps = modules()
         for module in deps:

@@ -10,6 +10,8 @@
 
 ## 0.2：文件传输与脚本
 
+第一批开发已实现 query 编码、data-raw、头文件、Basic/Bearer、Referer、Netscape Cookie 文件；尚未发布，契约见 [开发版说明](DEVELOPMENT_V0.2.md)。multipart、流式上传、续传与结构化调用仍待后续交付。
+
 按实际使用需求依次加入 multipart、流式上传、Cookie 文件、write-out 字段、多 URL。每项先定义 curl 对照行为，再实现和测试。Cookie 文件必须覆盖域/path/Secure、权限和导入导出边界；流式上传必须覆盖不可重放源、取消及正文生命周期。
 
 ## 后续能力

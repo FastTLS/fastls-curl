@@ -10,7 +10,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -21,10 +20,9 @@ import (
 	"github.com/FastTLS/fastls/imitate"
 	"github.com/FastTLS/fastls/profile"
 	generators "github.com/FastTLS/imitate"
-	"golang.org/x/net/publicsuffix"
 )
 
-var Version = "0.1.0"
+var Version = "0.2.0-dev"
 
 const help = `fcurl - HTTP requests with fastls TLS and HTTP fingerprints
 Usage: fcurl [options] <http(s)://URL>
@@ -32,6 +30,15 @@ Usage: fcurl [options] <http(s)://URL>
   -X, --request METHOD        Custom HTTP method
   -H, --header 'Name: value'  Repeatable; 'Name:' removes, 'Name;' sends empty
   -A, --user-agent VALUE      Override request User-Agent
+  -G, --get                   Append request data to URL query; use GET/HEAD
+      --data-raw DATA         Literal data; @ has no special meaning
+      --data-urlencode DATA   Percent encode value or file data
+  -u, --user USER:PASS        Noninteractive Basic credentials
+      --basic                Select Basic authentication
+      --oauth2-bearer TOKEN   Bearer token (explicit Authorization wins)
+  -e, --referer VALUE         Explicit Referer (no automatic mode)
+  -b, --cookie VALUE          Cookie string or Netscape cookie file
+  -c, --cookie-jar FILE       Persist session cookies to a Netscape file
   -d, --data DATA             Form data; @file or @- reads and strips CR/LF/NUL
       --data-binary DATA      Binary data; @file or @- reads unchanged
       --json DATA             JSON data and default JSON headers
@@ -109,28 +116,26 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 	return code
 }
 
-func execute(ctx context.Context, o options, stdin io.Reader, stdout, stderr io.Writer) error {
+func execute(ctx context.Context, o options, stdin io.Reader, stdout, stderr io.Writer) (result error) {
 	target, err := parseURL(o.url)
 	if err != nil {
 		return err
 	}
-	h, err := headerEdits(o.headers)
+	h, err := requestHeaders(o, stdin)
 	if err != nil {
-		return &failure{2, err}
-	}
-	if o.userAgent != nil {
-		agent, e := headerEdits([]string{"User-Agent:" + *o.userAgent})
-		if e != nil {
-			return &failure{2, e}
-		}
-		if _, explicit := h["User-Agent"]; !explicit {
-			h["User-Agent"] = agent["User-Agent"]
-		}
+		return err
 	}
 	_, explicitContentType := h["Content-Type"]
 	body, contentType, isJSON, err := readData(o.data, stdin)
 	if err != nil {
 		return err
+	}
+	if o.get {
+		if err = appendQuery(target, body); err != nil {
+			return err
+		}
+		body = nil
+		contentType = ""
 	}
 	if contentType != "" {
 		if _, ok := h["Content-Type"]; !ok {
@@ -151,11 +156,30 @@ func execute(ctx context.Context, o options, stdin io.Reader, stdout, stderr io.
 	if err != nil {
 		return err
 	}
-	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	jar := newPersistentJar()
+	for _, cookie := range o.cookies {
+		if cookie != "" && !strings.Contains(cookie, "=") {
+			if err = jar.load(cookie, stdin); err != nil {
+				return err
+			}
+		}
+	}
+	if o.cookieJar != "" {
+		for _, path := range []string{o.output, o.dump} {
+			if pathsEqual(path, o.cookieJar) {
+				return fail(2, "cookie jar and response output must use different files")
+			}
+		}
+		defer func() {
+			if e := jar.save(o.cookieJar); e != nil {
+				result = &failure{23, errors.Join(e, result)}
+			}
+		}()
+	}
 	base.CookieJar = jar
 	method := "GET"
-	postData := len(o.data) > 0
-	if len(o.data) > 0 {
+	postData := len(o.data) > 0 && !o.get
+	if postData {
 		method = "POST"
 	}
 	if o.head {
@@ -430,6 +454,14 @@ func sameFile(a, b string) bool {
 	y, e2 := os.Stat(b)
 	return e1 == nil && e2 == nil && os.SameFile(x, y)
 }
+func pathsEqual(a, b string) bool {
+	if a == "" || a == "-" || b == "" || b == "-" {
+		return false
+	}
+	x, e1 := filepath.Abs(a)
+	y, e2 := filepath.Abs(b)
+	return e1 == nil && e2 == nil && (x == y || os.PathSeparator == '\\' && strings.EqualFold(x, y) || sameFile(x, y))
+}
 
 const maxRequestBytes = 32 << 20
 
@@ -438,20 +470,9 @@ func readData(parts []dataPart, stdin io.Reader) ([]byte, string, bool, error) {
 	contentType := ""
 	isJSON := false
 	for _, p := range parts {
-		b := []byte(p.value)
-		if strings.HasPrefix(p.value, "@") {
-			var err error
-			if p.value == "@-" {
-				b, err = io.ReadAll(io.LimitReader(stdin, maxRequestBytes+1))
-			} else {
-				b, err = readLimitedFile(p.value[1:], maxRequestBytes)
-			}
-			if err != nil {
-				return nil, "", false, fail(26, "cannot read request data: %v", err)
-			}
-			if p.kind == "--data" {
-				b = []byte(strings.NewReplacer("\r", "", "\n", "", "\x00", "").Replace(string(b)))
-			}
+		b, err := encodedData(p, stdin)
+		if err != nil {
+			return nil, "", false, err
 		}
 		if p.kind == "--json" {
 			isJSON = true
