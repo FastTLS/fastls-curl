@@ -8,11 +8,11 @@
 
 首版验收包括选项与错误行为、本地 HTTP1/HTTP2、多值头、TLS 验证与 CA、代理信任、SOCKS DNS、跨源重定向、正文重放、压缩、流式下载、取消和输出故障，以及五平台产物身份/安装、Linux race、5 分钟资源检查。完整性能认证单独立项，不把资源检查当作性能结论。
 
-## 0.2：文件传输与脚本
+## 0.2：单请求脚本扩展与后续文件传输
 
-第一批开发已实现 query 编码、data-raw、头文件、Basic/Bearer、Referer、Netscape Cookie 文件；尚未发布，契约见 [开发版说明](DEVELOPMENT_V0.2.md)。multipart、流式上传、续传与结构化调用仍待后续交付。
+v0.2.0 已交付 query 编码、data-raw、头文件、Basic/Bearer、Referer、Netscape Cookie 文件，契约见 [功能说明](DEVELOPMENT_V0.2.md)。multipart、流式上传、续传与结构化调用仍待后续交付。
 
-按实际使用需求依次加入 multipart、流式上传、Cookie 文件、write-out 字段、多 URL。每项先定义 curl 对照行为，再实现和测试。Cookie 文件必须覆盖域/path/Secure、权限和导入导出边界；流式上传必须覆盖不可重放源、取消及正文生命周期。
+按实际使用需求依次加入 multipart、流式上传、write-out 字段、多 URL。每项先定义 curl 对照行为，再实现和测试。Cookie 文件必须覆盖域/path/Secure、权限和导入导出边界；流式上传必须覆盖不可重放源、取消及正文生命周期。
 
 ## 后续能力
 
@@ -20,6 +20,6 @@
 
 ## 发布方式
 
-首选 GitHub Release 发布五个平台压缩包、SHA-256、模块与源码身份清单、许可证材料。尚未创建正式标签或发布 Release。候选通过后复用同一字节，不因合并或标签变化自动重跑资源/性能认证。
+首选 GitHub Release 发布五个平台压缩包、SHA-256、模块与源码身份清单、许可证材料。v0.1.0 与 v0.2.0 使用正式标签和 Actions 发布流程。候选通过后复用同一字节，不因合并或标签变化自动重跑资源/性能认证。
 
 暂不创建 npm 包；若后续需要 npm 分发，遵循工作区 Trusted Publisher / GitHub Actions OIDC 偏好，并单独确认新包和工作流身份，不复用长期 token。

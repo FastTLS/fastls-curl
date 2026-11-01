@@ -1,6 +1,6 @@
 # fastls-curl
 
-基于 [FastTLS/fastls](https://github.com/FastTLS/fastls) 的 HTTP 命令行工具，命令名 **`fcurl`**。支持常用 curl 参数、TLS/HTTP 指纹、代理与流式下载。首个正式版本为 `v0.1.0`；可下载的正式产物以 [GitHub Releases](https://github.com/FastTLS/fastls-curl/releases) 为准。
+基于 [FastTLS/fastls](https://github.com/FastTLS/fastls) 的 HTTP 命令行工具，命令名 **`fcurl`**。支持常用 curl 参数、TLS/HTTP 指纹、代理与流式下载。当前正式版本为 `v0.2.0`；可下载的正式产物以 [GitHub Releases](https://github.com/FastTLS/fastls-curl/releases) 为准。
 
 ## 安装与构建
 
@@ -13,7 +13,7 @@ go build -trimpath -o dist/fcurl ./cmd/fcurl
 
 Windows 将输出文件改为 `dist/fcurl.exe`。也可从 GitHub Releases 下载对应平台压缩包与 SHA256SUMS，核对摘要后解包使用。安装位置、源码标签安装和 Actions 发布流程见 [RELEASE.md](RELEASE.md)。
 
-当前开发分支为 `0.2.0-dev`，新增查询编码、原始数据、头文件、Basic/Bearer、Referer 与 Cookie 文件。新增能力尚未发布，示例和限制见 [开发版说明](DEVELOPMENT_V0.2.md)；固定安装 `@v0.1.0` 仍获得首版能力。
+v0.2.0 新增查询编码、原始数据、头文件、Basic/Bearer、Referer 与 Cookie 文件。示例和限制见 [v0.2.0 功能说明](DEVELOPMENT_V0.2.md)。源码安装：`go install github.com/FastTLS/fastls-curl/cmd/fcurl@v0.2.0`。
 
 ## 使用
 
@@ -37,7 +37,7 @@ fcurl --help
 
 ## 范围与边界
 
-本项目提供 HTTP/HTTPS 命令行兼容子集，不提供 libcurl ABI。正式 v0.1.0 支持 HTTP/1.1 和 HTTP/2，不支持 HTTP/3、FTP、WebSocket、多个 URL、并行、multipart、Cookie 文件或环境代理。开发版新增范围见上文说明。未知参数直接报错，不转交系统 curl。
+本项目提供 HTTP/HTTPS 命令行兼容子集，不提供 libcurl ABI。正式 v0.2.0 支持 HTTP/1.1 和 HTTP/2，不支持 HTTP/3、FTP、WebSocket、多个 URL、并行、multipart 或环境代理。未知参数直接报错，不转交系统 curl。
 
 完整参数、退出码和行为差异见 [COMPATIBILITY.md](COMPATIBILITY.md)。包括 `--max-time 0` 在内的 CLI 超时设置仍受上游建连保护限制，详见该文档。
 

@@ -1,8 +1,8 @@
 # fcurl 调用方式与接口演进规划
 
-本文规划更完整的调用体验，不代表新增参数已经实现。当前能力以 [COMPATIBILITY.md](COMPATIBILITY.md) 为准；实现基线为 `8232f7d`。以下“现有”示例可用于当前开发版，“拟议”示例只用于接口评审。
+本文规划更完整的调用体验，不代表新增参数已经实现。当前能力以 [COMPATIBILITY.md](COMPATIBILITY.md) 为准；v0.2 功能验收基线为 `b2414e0`。以下“现有”示例可用于当前正式版，“拟议”示例只用于接口评审。
 
-实施进度：v0.1.0 已完成发布；查询编码、data-raw、头文件、Basic/Bearer、Referer、Cookie 文件已在 0.2.0-dev 分支实现，见 [开发版说明](DEVELOPMENT_V0.2.md)。本文其余规划仍按原阶段推进，不代表已完成。
+实施进度：v0.1.0 已完成发布；查询编码、data-raw、头文件、Basic/Bearer、Referer、Cookie 文件已随 v0.2.0 交付，见 [功能说明](DEVELOPMENT_V0.2.md)。本文其余规划仍按原阶段推进，不代表已完成。
 
 ## 1. 调用层次
 
@@ -25,7 +25,7 @@ fcurl -X PATCH --json @patch.json https://example.com/object/123
 fcurl -X DELETE https://example.com/object/123
 ```
 
-URL 的查询参数当前由调用方编码。自定义方法按核心规则转为大写。指定请求数据默认 POST，显式 `-X` 覆盖实际方法。
+URL 的查询参数可由调用方编码，或使用 `-G --data-urlencode`。自定义方法按核心规则转为大写。指定请求数据默认 POST，显式 `-X` 覆盖实际方法。
 
 ### 2.2 指纹、头与认证
 
@@ -38,7 +38,7 @@ fcurl -H 'X-Tag: first' -H 'X-Tag: second' https://example.com
 fcurl -H 'User-Agent:' -H 'X-Empty;' https://example.com
 ```
 
-profile ID、Spec 文件、JA3、JA4R 四种来源互斥。重复普通头保留多值；`Name:` 抑制头，`Name;` 发送空值。`-A` 只改实际 UA，不自动重生成 Client Hints 或协议指纹。当前没有 `-u`、Cookie 文件或独立 Bearer 选项，认证可显式提供请求头。
+profile ID、Spec 文件、JA3、JA4R 四种来源互斥。重复普通头保留多值；`Name:` 抑制头，`Name;` 发送空值。`-A` 只改实际 UA，不自动重生成 Client Hints 或协议指纹。v0.2.0 支持 `-u/--basic`、Cookie 文件和 `--oauth2-bearer`；显式认证头优先。
 
 ### 2.3 代理、CA 与超时
 
@@ -135,7 +135,7 @@ await Promise.all([
 
 ## 4. 0.2 规划：把单请求能力补齐
 
-以下参数均为拟议能力，当前未知参数仍直接报错。
+本节保留阶段规划；query、data-raw、头文件、Basic/Bearer、Cookie 文件和 Referer 已随 v0.2.0 交付，其余参数仍为拟议能力。当前未知参数直接报错。
 
 ### 4.1 查询、表单与请求体
 
@@ -145,7 +145,7 @@ await Promise.all([
 - `-T/--upload-file`：文件或 `-` 标准输入流式上传，区分可重开文件与不可重放输入。
 - `-H @headers.txt`：文件中每行一个头编辑，保留重复字段和抑制语义。
 
-拟议调用：
+阶段调用示例（其中 multipart、upload 仍未实现）：
 
 ```sh
 fcurl -G --data-urlencode 'q=TLS 指纹' --data-urlencode 'tag=a&b' https://example.com/search
@@ -162,7 +162,7 @@ fcurl -T archive.tar https://example.com/object
 - `--netrc-file`：显式读取账号配置；自动发现和更复杂认证后置。
 - `--referer`、`--proxy-user`：把业务头、目标站认证和代理认证分开。
 
-拟议调用：
+v0.2.0 已支持的调用示例：
 
 ```sh
 fcurl --user demo:password --basic https://example.com/api

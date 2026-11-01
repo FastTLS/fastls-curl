@@ -1,12 +1,13 @@
 # curl 兼容范围
 
-这是首版行为契约；未列入的选项不作兼容承诺。语义参考 [curl 手册](https://curl.se/docs/manpage.html)，不宣称完整替代 curl。
+这是 v0.2.0 行为契约；未列入的选项不作兼容承诺。语义参考 [curl 手册](https://curl.se/docs/manpage.html)，不宣称完整替代 curl。
 
-正式 v0.1.0 继续使用本页契约。当前 `0.2.0-dev` 分支的新增参数及其差异见 [开发版说明](DEVELOPMENT_V0.2.md)；新增内容尚未进入正式标签。
+v0.2.0 新增参数及其差异见 [单请求扩展说明](DEVELOPMENT_V0.2.md)，该文档与本页共同定义正式行为。
 
 ## 已支持参数
 
-- 请求：`-X/--request`、`-H/--header`、`-A/--user-agent`、`-d/--data`、`--data-binary`、`--json`、`--url`。
+- 请求：`-X/--request`、`-H/--header`、`-A/--user-agent`、`-d/--data`、`--data-binary`、`--data-raw`、`--data-urlencode`、`-G/--get`、`--json`、`--url`；支持 `-H @file/@-`。
+- 认证与会话：`-u/--user`、`--basic`、`--oauth2-bearer`、`-e/--referer`、`-b/--cookie`、`-c/--cookie-jar`。
 - 输出：`-i/--include`、`-I/--head`、`-o/--output`、`-D/--dump-header`、`-s/--silent`、`-S/--show-error`、`-v/--verbose`。
 - 网络：`-L/--location`、`--max-redirs`、`-x/--proxy`、`--cacert`、`--proxy-cacert`、`-k/--insecure`、`--connect-timeout`、`-m/--max-time`。
 - 响应：`--compressed`、`-f/--fail`、`--fail-with-body`。
@@ -27,7 +28,7 @@
 
 空数据拼接固定采用 curl 8.12.1 语义：只有已累积正文非空才添加 `&`，因此 `-d '' -d second=2` 发送 `second=2`。curl 8.5.0 发送 `&second=2`；这是已知版本差异，分别保留精确断言。依据为上游 [8.5.0 postfields 存在性检查](https://github.com/curl/curl/blob/curl-8_5_0/src/tool_getparam.c#L1816) 与 [8.12.1 buffer 长度检查](https://github.com/curl/curl/blob/curl-8_12_1/src/tool_getparam.c#L916)。
 
-未指定数据时为 GET，`-I` 为 HEAD 并输出响应头；`-I` 与数据互斥。`-I -X METHOD` 仍仅输出响应头。
+未指定数据时为 GET，`-I` 为 HEAD 并输出响应头；`-I` 与正文数据互斥；`-G -I` 可将数据放入查询并发送 HEAD。`-I -X METHOD` 仍仅输出响应头。
 
 ## 重定向与会话
 
