@@ -7,11 +7,129 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestCookieOrderSurvivesPersistenceAndCurlInterop(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/set" {
+			http.SetCookie(w, &http.Cookie{Name: "sid", Value: "host-first", Path: "/"})
+			http.SetCookie(w, &http.Cookie{Name: "sid", Value: "domain-second", Domain: "example.test", Path: "/"})
+			http.Redirect(w, r, "/echo", 302)
+			return
+		}
+		io.WriteString(w, r.Header.Get("Cookie"))
+	}))
+	defer s.Close()
+	file := filepath.Join(t.TempDir(), "jar")
+	headers := []string{"-H", "Host: sub.example.test"}
+	want := "sid=host-first; sid=domain-second"
+	args := append([]string{"-L", "-c", file}, headers...)
+	if c, out, diag := invoke(append(args, s.URL+"/set")...); c != 0 || out != want {
+		t.Fatalf("initial order: %d %q %s", c, out, diag)
+	}
+	for i := 0; i < 3; i++ {
+		args = append([]string{"-b", file, "-c", file}, headers...)
+		if c, out, diag := invoke(append(args, s.URL+"/echo")...); c != 0 || out != want {
+			t.Fatalf("reload %d: %d %q %s", i, c, out, diag)
+		}
+	}
+	curl, e := exec.LookPath("curl")
+	if e != nil {
+		t.Log("reference curl unavailable; native round-trip assertions passed")
+		return
+	}
+	// Read our jar with curl, then read curl's jar with fcurl.
+	for _, mode := range []string{"read", "write"} {
+		args = []string{"--disable", "--noproxy", "*", "-sS", "--max-time", "5"}
+		if mode == "read" {
+			args = append(args, "-b", file)
+		} else {
+			args = append(args, "-L", "-c", file)
+		}
+		args = append(args, headers...)
+		path := "/echo"
+		if mode == "write" {
+			path = "/set"
+		}
+		out, e := exec.Command(curl, append(args, s.URL+path)...).Output()
+		if e != nil || string(out) != want {
+			t.Fatalf("curl %s: %q %v", mode, out, e)
+		}
+	}
+	args = append([]string{"-b", file}, headers...)
+	if c, out, diag := invoke(append(args, s.URL+"/echo")...); c != 0 || out != want {
+		t.Fatalf("curl jar import: %d %q %s", c, out, diag)
+	}
+}
+
+func TestCookieOrderUpdateDeletionAndRecreation(t *testing.T) {
+	u, _ := url.Parse("https://sub.example.test/")
+	j := newPersistentJar()
+	host := &http.Cookie{Name: "sid", Value: "host", Path: "/"}
+	domain := &http.Cookie{Name: "sid", Value: "domain", Domain: "example.test", Path: "/"}
+	j.SetCookies(u, []*http.Cookie{host, domain})
+	file := filepath.Join(t.TempDir(), "jar")
+	check := func(want string) {
+		t.Helper()
+		if e := j.save(file); e != nil {
+			t.Fatal(e)
+		}
+		loaded := newPersistentJar()
+		if e := loaded.load(file, strings.NewReader("")); e != nil {
+			t.Fatal(e)
+		}
+		for _, jar := range []*persistentJar{j, loaded} {
+			var pairs []string
+			for _, c := range jar.Cookies(u) {
+				pairs = append(pairs, c.Name+"="+c.Value)
+			}
+			if got := strings.Join(pairs, "; "); got != want {
+				t.Fatalf("order %q, want %q", got, want)
+			}
+		}
+	}
+	host.Value = "updated"
+	j.SetCookies(u, []*http.Cookie{host})
+	check("sid=updated; sid=domain")
+	host.MaxAge = -1
+	j.SetCookies(u, []*http.Cookie{host})
+	check("sid=domain")
+	host.MaxAge, host.Value = 0, "recreated"
+	j.SetCookies(u, []*http.Cookie{host})
+	check("sid=domain; sid=recreated")
+}
+
+func TestImportedDuplicateCookiesMatchCurl(t *testing.T) {
+	curl, e := exec.LookPath("curl")
+	if e != nil {
+		t.Skip("reference curl unavailable")
+	}
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, r.Header.Get("Cookie"))
+	}))
+	defer s.Close()
+	file := filepath.Join(t.TempDir(), "jar")
+	for _, text := range []string{
+		"127.0.0.1\tFALSE\t/\tFALSE\t0\tsid\tfirst\n127.0.0.1\tFALSE\t/\tFALSE\t0\tsid\tsecond\n",
+		"127.0.0.1\tFALSE\t/\tFALSE\t0\tsid\tfirst\n127.0.0.1\tFALSE\t/\tFALSE\t1\tsid\texpired\n",
+	} {
+		if e := os.WriteFile(file, []byte(text), 0600); e != nil {
+			t.Fatal(e)
+		}
+		out, e := exec.Command(curl, "--disable", "--noproxy", "*", "-sS", "--max-time", "5", "-b", file, s.URL).Output()
+		if e != nil {
+			t.Fatal(e)
+		}
+		if c, got, diag := invoke("-b", file, s.URL); c != 0 || got != string(out) {
+			t.Fatalf("duplicate import: %d %q %s; curl %q", c, got, diag, out)
+		}
+	}
+}
 
 func TestCookieFileRoundTripAndFailurePersistence(t *testing.T) {
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -14,8 +14,11 @@ func dataFile(p dataPart) (prefix, path string, file bool) {
 		return "", "", false
 	}
 	if p.kind == "--data-urlencode" {
-		index := strings.IndexAny(p.value, "=@")
-		if index >= 0 && p.value[index] == '@' {
+		// curl gives name=content precedence even when the name contains '@'.
+		if strings.Contains(p.value, "=") {
+			return "", "", false
+		}
+		if index := strings.IndexByte(p.value, '@'); index >= 0 {
 			return p.value[:index], p.value[index+1:], true
 		}
 		return "", "", false
