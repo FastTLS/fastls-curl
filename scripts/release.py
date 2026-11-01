@@ -60,6 +60,10 @@ def metadata_equivalent(current, baseline):
     return production(current) == production(baseline) and build_recipe(current) == build_recipe(baseline) and ci_build_contract(current) == ci_build_contract(baseline)
 
 
+def runtime_test_inputs(ref):
+    return {path: hashlib.sha256(source(ref,path).replace(b"\r\n",b"\n")).hexdigest() for path in git("ls-tree","-r","--name-only",ref).splitlines() if path.endswith("_test.go")}
+
+
 def ci_build_contract(ref):
     workflow = source(ref, ".github/workflows/ci.yml").decode()
     # Narrowing acceptance must also preserve the compiler setup, platform

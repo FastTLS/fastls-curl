@@ -20,6 +20,8 @@ func TestSingleRequestCurlDifferential(t *testing.T) {
 	if e != nil {
 		t.Skip("reference curl unavailable")
 	}
+	version, _ := exec.Command(curl, "--version").Output()
+	t.Logf("reference: %s", strings.SplitN(string(version), "\n", 2)[0])
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/redirect" {
 			http.Redirect(w, r, "/echo", 302)
@@ -32,14 +34,20 @@ func TestSingleRequestCurlDifferential(t *testing.T) {
 			return
 		}
 		// Compare query key/value semantics; escape hex case is URI-equivalent.
-		fmt.Fprintf(w, "%s|%s|%s|%s|%s|%s|%s|%s", r.Method, query.Encode(), body, r.Header.Get("Content-Type"), r.Header.Get("Authorization"), r.Header.Get("Referer"), r.Header.Get("Cookie"), strings.Join(r.Header.Values("X-Test"), ","))
+		var cookies []string
+		for _, c := range r.Cookies() {
+			cookies = append(cookies, c.Name+"="+c.Value)
+		}
+		fmt.Fprintf(w, "%s|%s|%s|%s|%s|%s|%s|%s", r.Method, query.Encode(), body, r.Header.Get("Content-Type"), r.Header.Get("Authorization"), r.Header.Get("Referer"), strings.Join(cookies, ";"), strings.Join(r.Header.Values("X-Test"), ","))
 	}))
 	defer s.Close()
 	dir := t.TempDir()
 	data := filepath.Join(dir, "value.txt")
 	headers := filepath.Join(dir, "headers.txt")
+	referenceHeaders := filepath.Join(dir, "headers-reference.txt")
 	os.WriteFile(data, []byte("first\r\nsecond &世界"), 0600)
 	os.WriteFile(headers, []byte("X-Test: a\r\nX-Test: b\r\nUser-Agent:\r\n"), 0600)
+	os.WriteFile(referenceHeaders, []byte("X-Test: a\nX-Test: b\nUser-Agent:\n"), 0600)
 	for _, args := range [][]string{
 		{"-G", "--data-urlencode", "q=hello world", "--data-urlencode", "tag=a&b", s.URL + "?existing=1"},
 		{"-G", "--data-urlencode", "q=世界", s.URL},
@@ -60,7 +68,16 @@ func TestSingleRequestCurlDifferential(t *testing.T) {
 		{"-b", "a=1", "-H", "Cookie: explicit=2", s.URL},
 		{"-L", "-G", "--data-urlencode", "q=first", s.URL + "/redirect"},
 	} {
-		cmd := exec.Command(curl, append([]string{"--disable", "--silent", "--noproxy", "*"}, args...)...)
+		referenceArgs := append([]string{}, args...)
+		// Some platform curl builds send stray CR bytes from a CRLF file.
+		// Compare the same logical fields through LF; fcurl's two line endings
+		// and its exact Cookie formatting are independently asserted below.
+		for i, arg := range referenceArgs {
+			if arg == "@"+headers {
+				referenceArgs[i] = "@" + referenceHeaders
+			}
+		}
+		cmd := exec.Command(curl, append([]string{"--disable", "--silent", "--noproxy", "*"}, referenceArgs...)...)
 		var ref bytes.Buffer
 		cmd.Stdout = &ref
 		if e := cmd.Run(); e != nil {
@@ -69,6 +86,20 @@ func TestSingleRequestCurlDifferential(t *testing.T) {
 		code, got, diag := invoke(args...)
 		if code != 0 || got != ref.String() {
 			t.Errorf("%q: fcurl (%d,%q,%s), curl %q", args, code, got, diag, ref.String())
+		}
+	}
+}
+
+func TestInlineCookieFormattingAndHeaderFileLineEndings(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "%s|%s|%s", r.Header.Get("Cookie"), strings.Join(r.Header.Values("X-Test"), ","), r.Header.Get("User-Agent"))
+	}))
+	defer s.Close()
+	path := filepath.Join(t.TempDir(), "headers")
+	for _, newline := range []string{"\n", "\r\n"} {
+		os.WriteFile(path, []byte(strings.Join([]string{"X-Test: a", "X-Test: b", "User-Agent:", ""}, newline)), 0600)
+		if c, out, diag := invoke("-H", "@"+path, "-b", "a=1", "-b", "b=2", s.URL); c != 0 || out != "a=1;b=2|a,b|" {
+			t.Fatalf("line ending %q: %d %q %s", newline, c, out, diag)
 		}
 	}
 }
