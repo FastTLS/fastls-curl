@@ -57,7 +57,19 @@ def build_recipe(ref):
 
 
 def metadata_equivalent(current, baseline):
-    return production(current) == production(baseline) and build_recipe(current) == build_recipe(baseline)
+    return production(current) == production(baseline) and build_recipe(current) == build_recipe(baseline) and ci_build_contract(current) == ci_build_contract(baseline)
+
+
+def ci_build_contract(ref):
+    workflow = source(ref, ".github/workflows/ci.yml").decode()
+    # Narrowing acceptance must also preserve the compiler setup, platform
+    # selection and Go environment, not just the command used inside package.py.
+    lines = [line.strip() for line in workflow.splitlines() if re.search(r"setup-go@|go-version:|go-version-file:|\bGO[A-Z0-9_]+\s*[:=]|\bCGO_ENABLED\s*[:=]|\bgo env\b", line)]
+    tree = ast.parse(source(ref, "scripts/test_plan.py"))
+    targets = [ast.dump(node.value, include_attributes=False) for node in tree.body if isinstance(node, ast.Assign) and any(isinstance(name, ast.Name) and name.id == "TARGETS" for name in node.targets)]
+    if len(targets) != 1:
+        raise ValueError("native platform contract cannot be identified")
+    return lines, targets
 
 
 def api(path, method="GET", body=None, binary=None, content_type=None, allow_missing=False):

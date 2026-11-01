@@ -43,6 +43,16 @@ class ReleaseChecks(unittest.TestCase):
         with patch.object(release, "source", return_value=src.replace(b"-trimpath", b"-race")):
             self.assertNotEqual(before, release.build_recipe("HEAD"))
 
+    def test_compiler_setup_and_native_platforms_are_part_of_reuse_contract(self):
+        def read(ref, path):
+            return b"go-version: '1.26.10'\nCGO_ENABLED: '0'\n" if path.endswith("ci.yml") else b'TARGETS=[{"runner":"linux","target":"linux-amd64"}]'
+        with patch.object(release, "source", side_effect=read):
+            before = release.ci_build_contract("HEAD")
+        def changed(ref, path):
+            return read(ref, path).replace(b"1.26.10", b"1.27.0")
+        with patch.object(release, "source", side_effect=changed):
+            self.assertNotEqual(before, release.ci_build_contract("HEAD"))
+
     def test_missing_or_failed_required_evidence_is_rejected(self):
         run = {"id": 1, "conclusion": "success", "status": "completed", "path": ".github/workflows/ci.yml", "repository": {"full_name": release.REPO}}
         jobs = [{"name": n, "conclusion": "success"} for n in release.NATIVE | {"plan", "required"}]
