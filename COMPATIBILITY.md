@@ -2,6 +2,8 @@
 
 这是首版行为契约；未列入的选项不作兼容承诺。语义参考 [curl 手册](https://curl.se/docs/manpage.html)，不宣称完整替代 curl。
 
+正式 v0.1.0 继续使用本页契约。当前 `0.2.0-dev` 分支的新增参数及其差异见 [开发版说明](DEVELOPMENT_V0.2.md)；新增内容尚未进入正式标签。
+
 ## 已支持参数
 
 - 请求：`-X/--request`、`-H/--header`、`-A/--user-agent`、`-d/--data`、`--data-binary`、`--json`、`--url`。

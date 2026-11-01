@@ -47,9 +47,9 @@ def main():
         tier, reason = args.tier, reason + "; raised by explicit input"
     evidence = None
     if tier != "docs" and args.tier == "auto" and (ROOT / "RELEASE_VALIDATION.json").exists():
-        from release import metadata_equivalent, verify_baseline
+        from release import metadata_equivalent, runtime_test_inputs, verify_baseline
         config = json.loads((ROOT / "RELEASE_VALIDATION.json").read_text())
-        if metadata_equivalent("HEAD", config["runtime_head"]):
+        if metadata_equivalent("HEAD", config["runtime_head"]) and runtime_test_inputs("HEAD") == runtime_test_inputs(config["runtime_head"]):
             # A successful five-platform + race/resource run must be verified,
             # not merely claimed in a local file, before narrowing this scope.
             evidence = verify_baseline(config)

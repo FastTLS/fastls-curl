@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -12,10 +14,17 @@ import (
 )
 
 func runResourceSoak(t *testing.T) {
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, strings.Repeat("x", 64<<10)) }))
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{Name: "session", Value: "bounded", Path: "/", HttpOnly: true})
+		io.WriteString(w, strings.Repeat("x", 64<<10))
+	}))
 	defer s.Close()
+	jar := filepath.Join(t.TempDir(), "cookies.txt")
+	if err := os.WriteFile(jar, []byte("# Netscape HTTP Cookie File\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	run := func() {
-		if code := Run(context.Background(), []string{s.URL}, strings.NewReader(""), io.Discard, io.Discard); code != 0 {
+		if code := Run(context.Background(), []string{"-b", jar, "-c", jar, s.URL}, strings.NewReader(""), io.Discard, io.Discard); code != 0 {
 			t.Fatalf("resource request exit %d", code)
 		}
 	}

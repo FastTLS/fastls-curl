@@ -9,6 +9,14 @@ import release
 
 
 class ReleaseChecks(unittest.TestCase):
+    def test_added_or_modified_go_cases_are_not_skipped_by_identity_scope(self):
+        with patch.object(release,"git",return_value="internal/cli/run_test.go"),patch.object(release,"source",return_value=b"original test"):
+            before=release.runtime_test_inputs("HEAD")
+        with patch.object(release,"git",return_value="internal/cli/run_test.go"),patch.object(release,"source",return_value=b"changed test"):
+            self.assertNotEqual(before,release.runtime_test_inputs("HEAD"))
+        with patch.object(release,"git",return_value="internal/cli/run_test.go\ninternal/cli/new_test.go"),patch.object(release,"source",return_value=b"original test"):
+            self.assertNotEqual(before,release.runtime_test_inputs("HEAD"))
+
     def test_only_version_string_is_normalized(self):
         files = ["go.mod", "go.sum", "cmd/fcurl/main.go", "internal/cli/run.go"]
         values = {p: b"fixed\n" for p in files}
