@@ -1,15 +1,12 @@
-fcurl v0.2.0 expands single-request scripting on the FastTLS HTTP CLI.
+fcurl v0.2.1 fixes two single-request compatibility issues.
 
-- Query and form encoding with -G/--get and --data-urlencode; literal --data-raw.
-- Header files (-H @file/@-), Basic/Bearer authentication and Referer.
-- Netscape Cookie import and atomic Cookie jar export, including domain/path, Secure, HttpOnly and expiry rules.
-- Strict stdin ownership, explicit authorization precedence and cross-origin credential stripping.
-- Five native platforms: Linux amd64/arm64, macOS amd64/arm64 and Windows amd64.
+- --data-urlencode now gives '=' precedence over '@': a@b=c is sent as a field instead of opening b=c as a file.
+- Netscape Cookie persistence preserves the precedence of equal-path, same-name host/domain cookies. Updates retain creation order; deletion and recreation assign a new position. Files interoperate with curl in both directions, including duplicate/expired records.
 
-Download your platform archive, verify it with SHA256SUMS, unpack and run `fcurl --version`. Source installation: `go install github.com/FastTLS/fastls-curl/cmd/fcurl@v0.2.0` (Go 1.26+).
+Historical creation order already lost by v0.2.0's alphabetical Cookie serialization cannot be reconstructed from those old files.
 
-Scope: one URL per invocation, request bodies buffered up to 32 MiB, streaming downloads. HTTP/3, multipart, streaming uploads, resume, retries, batches and metadata interfaces remain planned. HTTP proxies require CONNECT even for HTTP targets. See COMPATIBILITY.md and DEVELOPMENT_V0.2.md for exact behavior and limits.
+Download the archive for Linux amd64/arm64, macOS amd64/arm64 or Windows amd64, verify SHA256SUMS, unpack and run `fcurl --version`. Source installation: `go install github.com/FastTLS/fastls-curl/cmd/fcurl@v0.2.1` (Go 1.26+).
 
-Feature validation: CI run 41279793202 at b2414e052371c362afd58366603d2140094cfb06 passed five-platform tests, Linux race and a five-minute Cookie import/receive/atomic-save resource check. Version/source-only preparation reuses this evidence after input comparison; the exact release candidates receive five-platform identity and installation checks. No full throughput or hour-long stability certification is claimed.
+Validation: CI run 41317439501 at c7b83c0cb828c540519d93ff3ac7ca2d729872b4 passed five-platform regressions and installed archive checks, Linux race and a five-minute Cookie import/receive/atomic-save resource check (5,797 requests; retained heap 2,171,208 -> 2,268,488 bytes; goroutines 3 -> 3). Release preparation changes only version, documentation and evidence metadata; exact release candidates receive five-platform identity and installation checks. This is not full throughput or hour-long stability certification.
 
-Release archives are promoted from the exact installed CI candidates. BUILD.json, RELEASE.json and SOURCE_VERIFICATION.json link source, toolchain, dependency digests and runtime-validation evidence.
+Release archives are promoted from the exact installed CI candidates. BUILD.json, RELEASE.json and SOURCE_VERIFICATION.json link source, toolchain, dependency digests and runtime evidence. Existing request limits and planned features remain documented in COMPATIBILITY.md and DEVELOPMENT_V0.2.md.

@@ -1,6 +1,6 @@
-# v0.2.0：第一批单请求扩展
+# v0.2：第一批单请求扩展
 
-本页描述正式 v0.2.0 新增能力；历史 `v0.1.0` 不包含这些参数。基础行为继续遵循 [COMPATIBILITY.md](COMPATIBILITY.md)。安装后用 `fcurl --version` 确认 `0.2.0`。
+本页描述正式 v0.2 系列新增能力；历史 `v0.1.0` 不包含这些参数。基础行为继续遵循 [COMPATIBILITY.md](COMPATIBILITY.md)。当前补丁版本为 `0.2.1`，修复下文的参数解析与 Cookie 重载顺序；安装后用 `fcurl --version` 确认版本。
 
 ## 查询与请求正文
 
@@ -10,6 +10,8 @@ fcurl --data-urlencode 'name=hello world' --data-urlencode 'note@note.txt' https
 fcurl --data-raw '@literal-not-a-file' https://example.com/api
 fcurl -G -I --data-urlencode 'key=value' https://example.com
 ```
+
+v0.2.1 修正分隔符优先级：只要存在 `=`，就优先按 name=content 解析；例如 `a@b=c` 是字段数据，不读取名为 `b=c` 的文件，与 curl 一致。
 
 `--data-urlencode` 支持 content、=content、name=content、@file、name@file；文件 `-` 表示 stdin。name 按原样保留，value 采用 form 编码，空格变为 `+`，保留重复键和值的出现顺序。file 内容不删除换行；编码后的合计正文仍最多 32 MiB。
 

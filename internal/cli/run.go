@@ -22,7 +22,7 @@ import (
 	generators "github.com/FastTLS/imitate"
 )
 
-var Version = "0.2.0"
+var Version = "0.2.1"
 
 const help = `fcurl - HTTP requests with fastls TLS and HTTP fingerprints
 Usage: fcurl [options] <http(s)://URL>

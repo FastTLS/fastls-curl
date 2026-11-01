@@ -1,6 +1,6 @@
 # 发布流程
 
-`v0.2.0` 发布五个平台：Linux amd64/arm64、macOS amd64/arm64、Windows amd64。正式发布入口为 `.github/workflows/release.yml`，支持稳定标签推送和指定既有标签的手动续跑。
+`v0.2.1` 发布五个平台：Linux amd64/arm64、macOS amd64/arm64、Windows amd64。正式发布入口为 `.github/workflows/release.yml`，支持稳定标签推送和指定既有标签的手动续跑。
 
 ## 候选与验收
 
@@ -9,7 +9,7 @@
 3. 若生产输入或编译配方改变，必须完成五平台、Linux race 和 5 分钟资源验收，并将新的成功记录固定到 RELEASE_VALIDATION.json。验证器要求固定仓库、CI 工作流、提交和全部指定任务成功。
 4. 若只改版本、文档或发布元数据，验证器逐文件比较 cmd/internal 的生产输入、模块图和编译配方；只规范化唯一的版本字符串。只有上游完整验收仍可验证时，才能采用 identity 档，保留五平台构建身份和安装检查，不重复跑资源认证。
 
-RELEASE_VALIDATION.json 当前固定 v0.2 功能验收 run 41279793202 / head b2414e052371c362afd58366603d2140094cfb06，覆盖五平台、Linux race 和 5 分钟 Cookie 文件资源检查。版本准备复用前核实生产、测试与编译输入。历史 v0.1 报告保留；不能把资源检查描述为正式版本新字节的完整性能认证。
+RELEASE_VALIDATION.json 当前固定 v0.2.1 修复验收 run 41317439501 / head c7b83c0cb828c540519d93ff3ac7ca2d729872b4，覆盖五平台、Linux race 和 5 分钟 Cookie 文件资源检查。版本准备复用前核实生产、测试与编译输入。历史报告保留；不能把资源检查描述为正式版本新字节的完整性能认证。
 
 ## 标签与发布
 
@@ -29,7 +29,7 @@ RELEASE_VALIDATION.json 当前固定 v0.2 功能验收 run 41279793202 / head b2
 也可用 Go 1.26+ 安装固定源码标签：
 
 ```sh
-go install github.com/FastTLS/fastls-curl/cmd/fcurl@v0.2.0
+go install github.com/FastTLS/fastls-curl/cmd/fcurl@v0.2.1
 fcurl --version
 ```
 
