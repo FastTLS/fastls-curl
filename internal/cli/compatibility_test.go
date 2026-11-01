@@ -66,6 +66,20 @@ func TestCurlDifferential(t *testing.T) {
 			refCode = exit.ExitCode()
 		}
 		gotCode, got, diag := invoke(args...)
+		if len(args) >= 4 && args[0] == "-d" && args[1] == "" && args[2] == "-d" {
+			// curl 8.5 tests existence of postfields; curl 8.12.1 tests the
+			// accumulated buffer length. Keep both exact expectations, with
+			// fcurl's stable contract matching the documented 8.12.1 baseline.
+			want := "POST|second=2|||application/x-www-form-urlencoded|*/*"
+			wantReference := want
+			if strings.HasPrefix(string(version), "curl 8.5.0 ") {
+				wantReference = "POST|&second=2|||application/x-www-form-urlencoded|*/*"
+			}
+			if gotCode != 0 || got != want || refCode != 0 || reference.String() != wantReference {
+				t.Errorf("empty data: fcurl=(%d,%q,%s), curl=(%d,%q), expected=(%q,%q)", gotCode, got, diag, refCode, reference.String(), want, wantReference)
+			}
+			continue
+		}
 		if gotCode != refCode || got != reference.String() {
 			t.Errorf("args=%q: fcurl=(%d,%q,%s) curl=(%d,%q)", args, gotCode, got, diag, refCode, reference.String())
 		}

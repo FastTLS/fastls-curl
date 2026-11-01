@@ -23,6 +23,8 @@
 
 请求数据默认使用 POST，显式 `-X` 可覆盖。`--data @file` 和 `--data @-` 移除 CR/LF/NUL；`--data-binary`、`--json` 保留字节。普通数据重复项以 `&` 连接，JSON 重复项直接连接；JSON 与其他数据模式混用不支持。JSON 只设置默认 Content-Type/Accept，不检查 JSON 语法。所有数据合计最多 32 MiB，上传暂不流式。
 
+空数据拼接固定采用 curl 8.12.1 语义：只有已累积正文非空才添加 `&`，因此 `-d '' -d second=2` 发送 `second=2`。curl 8.5.0 发送 `&second=2`；这是已知版本差异，分别保留精确断言。依据为上游 [8.5.0 postfields 存在性检查](https://github.com/curl/curl/blob/curl-8_5_0/src/tool_getparam.c#L1816) 与 [8.12.1 buffer 长度检查](https://github.com/curl/curl/blob/curl-8_12_1/src/tool_getparam.c#L916)。
+
 未指定数据时为 GET，`-I` 为 HEAD 并输出响应头；`-I` 与数据互斥。`-I -X METHOD` 仍仅输出响应头。
 
 ## 重定向与会话
