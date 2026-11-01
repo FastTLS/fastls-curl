@@ -46,6 +46,8 @@ func TestCurlDifferential(t *testing.T) {
 		{"--data-binary", "hello\nworld", "-H", "X-Test: a", "-H", "X-Test: b", "-H", "X-Empty;", s.URL},
 		{"--json", `{"ok":true}`, s.URL},
 		{"-L", "-d", "x=1", s.URL + "/redirect"},
+		{"-L", "-X", "PUT", "-d", "x=1", s.URL + "/redirect"},
+		{"-L", "-X", "GET", "-d", "x=1", s.URL + "/redirect"},
 		{"--fail", s.URL + "/error"}, {"--fail-with-body", s.URL + "/error"},
 	} {
 		cmdArgs := append([]string{"--disable", "--silent", "--noproxy", "*"}, args...)

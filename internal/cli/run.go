@@ -144,6 +144,7 @@ func execute(ctx context.Context, o options, stdin io.Reader, stdout, stderr io.
 	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
 	base.CookieJar = jar
 	method := "GET"
+	postData := len(o.data) > 0
 	if len(o.data) > 0 {
 		method = "POST"
 	}
@@ -258,8 +259,9 @@ func execute(ctx context.Context, o options, stdin io.Reader, stdout, stderr io.
 				}
 				stripProfileCredentials(&base)
 			}
-			if resp.Status == 303 && method != "HEAD" || (resp.Status == 301 || resp.Status == 302) && method == "POST" {
+			if resp.Status == 303 && method != "HEAD" || (resp.Status == 301 || resp.Status == 302) && postData {
 				body = nil
+				postData = false
 				if o.method == "" {
 					method = "GET"
 				}
