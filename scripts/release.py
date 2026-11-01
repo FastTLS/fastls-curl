@@ -124,11 +124,25 @@ def version_tag(tag):
     return version
 
 
+def verify_remote_tag(tag, expected):
+    obj = api("git/ref/tags/" + urllib.parse.quote(tag, safe=""))["object"]
+    for _ in range(5):
+        if obj["type"] == "commit":
+            if obj["sha"] != expected:
+                raise ValueError("remote release tag changed its source identity")
+            return
+        if obj["type"] != "tag":
+            break
+        obj = api("git/tags/" + obj["sha"])["object"]
+    raise ValueError("remote release tag does not resolve to a commit")
+
+
 def preflight(args):
     version = version_tag(args.tag)
     subprocess.run(["git", "merge-base", "--is-ancestor", "HEAD", "origin/main"], cwd=ROOT, check=True)
     evidence = verify_baseline()
     head = git("rev-parse", "HEAD")
+    verify_remote_tag(args.tag, head)
     runs = api(f"actions/runs?head_sha={head}&event=push&per_page=30")["workflow_runs"]
     candidates = [r for r in runs if r["path"] == ".github/workflows/ci.yml" and r["head_sha"] == head and r["conclusion"] == "success"]
     if not candidates:
@@ -162,6 +176,9 @@ def collect(directory, evidence):
             raise ValueError(f"candidate identity mismatch: {target}")
         if manifest["toolchain"] != f"go version go{evidence['toolchain']} {target.replace('-', '/')}":
             raise ValueError(f"candidate toolchain mismatch: {target}")
+        for name in ["go.mod", "go.sum"]:
+            if manifest[name.replace('.', '_') + "_sha256"] != evidence["production_inputs"][name]:
+                raise ValueError(f"candidate dependency identity mismatch: {target}")
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()
         if (folder / (archive.name + ".sha256")).read_text().split() != [digest, archive.name]:
             raise ValueError(f"candidate archive digest mismatch: {target}")
@@ -180,6 +197,7 @@ def publish(args):
     evidence = json.loads(evidence_path.read_text())
     if evidence["source_commit"] != git("rev-parse", "HEAD") or evidence["tag"] != args.tag:
         raise ValueError("source evidence belongs to another release")
+    verify_remote_tag(args.tag, evidence["source_commit"])
     files, packages = collect(pathlib.Path(args.artifacts), evidence)
     sums = ROOT / "dist/SHA256SUMS"
     sums.write_text("".join(f"{p['sha256']}  {p['archive']}\n" for p in packages))
@@ -205,6 +223,7 @@ def publish(args):
     actual = {a["name"]: a for a in api(f"releases/{release['id']}/assets?per_page=100")}
     if set(actual) != set(expected) or any(actual[n].get("digest") != "sha256:" + sha for n, sha in expected.items()):
         raise ValueError("release asset set does not match the verified candidate")
+    verify_remote_tag(args.tag, evidence["source_commit"])
     if release["draft"]:
         release = api(f"releases/{release['id']}", "PATCH", {"draft": False, "make_latest": "true"})
     published = api("releases/tags/" + args.tag)

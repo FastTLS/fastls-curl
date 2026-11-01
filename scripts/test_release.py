@@ -56,7 +56,7 @@ class ReleaseChecks(unittest.TestCase):
                 release.verify_run({**run, "repository": {"full_name": "other/repo"}}, False)
 
     def fixture(self, root):
-        evidence = {"version": "0.1.0", "source_commit": "a" * 40, "source_tree": "b" * 40, "toolchain": "1.26.10"}
+        evidence = {"version": "0.1.0", "source_commit": "a" * 40, "source_tree": "b" * 40, "toolchain": "1.26.10", "production_inputs": {"go.mod": "mod-digest", "go.sum": "sum-digest"}}
         for target in release.TARGETS:
             folder = root / ("fcurl-" + target)
             folder.mkdir()
@@ -67,6 +67,7 @@ class ReleaseChecks(unittest.TestCase):
             binary = folder / ("fcurl.exe" if target.startswith("windows") else "fcurl")
             binary.write_bytes(b"candidate " + target.encode())
             manifest = {**evidence, "target": target, "source_dirty": False, "toolchain": f"go version go1.26.10 {target.replace('-', '/')}", "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest()}
+            manifest.update(go_mod_sha256="mod-digest", go_sum_sha256="sum-digest")
             (folder / (name + ".BUILD.json")).write_text(json.dumps(manifest))
         return evidence
 
@@ -91,6 +92,13 @@ class ReleaseChecks(unittest.TestCase):
     def test_api_does_not_send_credentials_to_unknown_hosts(self):
         with self.assertRaises(ValueError):
             release.api("https://unrelated.example/upload", "POST", binary=b"data")
+
+    def test_moved_remote_tags_are_rejected_and_annotated_tags_resolve(self):
+        with patch.object(release, "api", return_value={"object": {"type": "commit", "sha": "other"}}):
+            with self.assertRaises(ValueError):
+                release.verify_remote_tag("v0.1.0", "expected")
+        with patch.object(release, "api", side_effect=[{"object": {"type": "tag", "sha": "annotation"}}, {"object": {"type": "commit", "sha": "expected"}}]):
+            release.verify_remote_tag("v0.1.0", "expected")
 
 
 if __name__ == "__main__":
