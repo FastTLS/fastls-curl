@@ -1,5 +1,7 @@
 # 实施路线
 
+各阶段的调用形式、覆盖规则、机器结果和接入约定详见 [调用方式与接口演进规划](INVOCATION_PLAN.md)。新增参数在实现前均为拟议接口，不能视为当前能力。
+
 ## 0.1：独立命令行
 
 独立 Go 模块与 `cmd/fcurl`；直接调用 fastls.Session，不经 FFI 或 Fetch 服务。固定 fastls v0.2.1、imitate v0.1.2、profile v0.1.1，记录完整模块摘要。实现范围以 COMPATIBILITY.md 为准。

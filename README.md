@@ -54,6 +54,8 @@ python scripts/package.py
 
 后续路线与当前交付边界见 [ROADMAP.md](ROADMAP.md)。测试记录见 [VALIDATION.md](VALIDATION.md)。
 
+完整调用示例、脚本/语言接入、请求文件、批处理和公共接口演进见 [调用方式规划](INVOCATION_PLAN.md)，其中明确区分当前支持与拟议接口。
+
 ## 许可证
 
 项目自有代码采用 [Apache-2.0](LICENSE)，见 [NOTICE](NOTICE)。依赖保持各自许可证；平台包收集依赖的 LICENSE、NOTICE、COPYING、AUTHORS 与第三方声明文件，随附模块清单。
