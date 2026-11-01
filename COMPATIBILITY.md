@@ -17,6 +17,8 @@
 
 同名普通头保留多值及值顺序；字段间顺序以 profile 和底层传输规则为准，不承诺命令行位置等于线上字段顺序。`-H 'Name:'` 抑制字段，`-H 'Name;'` 发送一个空值。用户显式设置优先于指纹默认值。Host 只接受一个非空值。
 
+重复 `-A` 使用最后的值，显式 `-H 'User-Agent: ...'` 始终优先于 `-A`。跳转移除正文时，自动生成的 Content-Type 一并移除，用户显式指定的 Content-Type 保留。
+
 `Content-Length`、`Transfer-Encoding`、`Trailer` 和 `Proxy-Authorization` 由传输层管理，不接受 `-H` 覆盖。代理认证放在代理 URL 中。请求 URL 中的用户名、密码不支持。自定义方法按核心要求转为大写，这是与 curl 的差异。
 
 请求数据默认使用 POST，显式 `-X` 可覆盖。`--data @file` 和 `--data @-` 移除 CR/LF/NUL；`--data-binary`、`--json` 保留字节。普通数据重复项以 `&` 连接，JSON 重复项直接连接；JSON 与其他数据模式混用不支持。JSON 只设置默认 Content-Type/Accept，不检查 JSON 语法。所有数据合计最多 32 MiB，上传暂不流式。

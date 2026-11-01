@@ -48,6 +48,7 @@ func TestCurlDifferential(t *testing.T) {
 		{"-L", "-d", "x=1", s.URL + "/redirect"},
 		{"-L", "-X", "PUT", "-d", "x=1", s.URL + "/redirect"},
 		{"-L", "-X", "GET", "-d", "x=1", s.URL + "/redirect"},
+		{"-L", "-X", "PUT", "-d", "x=1", "-H", "Content-Type: custom/type", s.URL + "/redirect"},
 		{"--fail", s.URL + "/error"}, {"--fail-with-body", s.URL + "/error"},
 	} {
 		cmdArgs := append([]string{"--disable", "--silent", "--noproxy", "*"}, args...)
@@ -165,3 +166,26 @@ func TestStreamingDownloadAndCancellation(t *testing.T) {
 type countWriter struct{ n int }
 
 func (w *countWriter) Write(b []byte) (int, error) { w.n += len(b); return len(b), nil }
+
+func TestUserAgentPrecedence(t *testing.T) {
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, r.Header.Get("User-Agent")) }))
+	defer s.Close()
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"-A", "first", "-A", "second"}, "second"},
+		{[]string{"-H", "User-Agent: header", "-A", "agent"}, "header"},
+		{[]string{"-A", "agent", "-H", "User-Agent: header"}, "header"},
+		{[]string{"--profile", "chrome/156/windows", "-A", "first", "-A", "second"}, "second"},
+		{[]string{"-A", ""}, ""},
+	} {
+		args := append(append([]string{}, tc.args...), s.URL)
+		if c, out, e := invoke(args...); c != 0 || out != tc.want {
+			t.Errorf("%q: %d %q %s", tc.args, c, out, e)
+		}
+	}
+	if c, _, _ := invoke("-A", "bad\r\nInjected: yes", s.URL); c != 2 {
+		t.Fatalf("UA injection code %d", c)
+	}
+}

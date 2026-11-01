@@ -118,6 +118,16 @@ func execute(ctx context.Context, o options, stdin io.Reader, stdout, stderr io.
 	if err != nil {
 		return &failure{2, err}
 	}
+	if o.userAgent != nil {
+		agent, e := headerEdits([]string{"User-Agent:" + *o.userAgent})
+		if e != nil {
+			return &failure{2, e}
+		}
+		if _, explicit := h["User-Agent"]; !explicit {
+			h["User-Agent"] = agent["User-Agent"]
+		}
+	}
+	_, explicitContentType := h["Content-Type"]
 	body, contentType, isJSON, err := readData(o.data, stdin)
 	if err != nil {
 		return err
@@ -266,6 +276,9 @@ func execute(ctx context.Context, o options, stdin io.Reader, stdout, stderr io.
 					method = "GET"
 				}
 				for _, name := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {
+					if name == "Content-Type" && explicitContentType {
+						continue
+					}
 					h[name] = nil
 				}
 			}

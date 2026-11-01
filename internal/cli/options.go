@@ -12,6 +12,7 @@ import (
 
 type dataPart struct{ kind, value string }
 type options struct {
+	userAgent                                                     *string
 	url, method, output, dump, proxy, ca, proxyCA                 string
 	profile, profileFile, ja3, ja4r                               string
 	headers                                                       []string
@@ -106,10 +107,7 @@ func parse(args []string) (options, error) {
 			case "--header":
 				o.headers = append(o.headers, v)
 			case "--user-agent":
-				o.headers = append(o.headers, "User-Agent: "+v)
-				if v == "" {
-					o.headers[len(o.headers)-1] = "User-Agent:"
-				}
+				o.userAgent = &v
 			case "--data", "--data-binary", "--json":
 				o.data = append(o.data, dataPart{name, v})
 			case "--output":
