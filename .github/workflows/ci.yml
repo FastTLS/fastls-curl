@@ -1,0 +1,125 @@
+name: fcurl checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      test_tier:
+        description: Minimum scope (risk rules may raise this)
+        type: choice
+        options: [auto, patch, minor]
+        default: auto
+
+permissions:
+  contents: read
+
+env:
+  GOWORK: 'off'
+
+concurrency:
+  group: fcurl-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tier: ${{ steps.plan.outputs.tier }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Select minimum sufficient scope
+        id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TIER: ${{ inputs.test_tier || 'auto' }}
+        run: python scripts/test_plan.py --base "$BASE" --tier "$TIER" --output test-plan.json --github-output "$GITHUB_OUTPUT"
+      - run: python scripts/check_docs.py
+      - name: Check scope selection
+        if: steps.plan.outputs.tier != 'docs'
+        run: python scripts/test_test_plan.py
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v4
+        with:
+          name: test-plan
+          path: test-plan.json
+          if-no-files-found: error
+
+  native:
+    needs: plan
+    if: needs.plan.outputs.tier != 'docs'
+    name: Native / ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '0'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.26.10'
+          cache: true
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - run: go mod verify
+      - run: go test ./... -count=1 -timeout=3m
+      - run: go vet ./...
+      - name: Build once, package and verify installed bytes
+        run: python scripts/package.py --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: fcurl-${{ matrix.target }}
+          path: dist/
+          if-no-files-found: error
+
+  race-and-resource:
+    needs: plan
+    if: needs.plan.outputs.tier == 'minor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version: '1.26.10'
+          cache: true
+      - run: go test -race ./... -count=1 -timeout=3m
+      - name: Five minute retained resource check
+        env:
+          FCURL_RESOURCE_CHECK: '1'
+        run: go test ./internal/cli -run '^TestResourceSoak$' -count=1 -v -timeout=7m
+
+  required:
+    needs: [plan, native, race-and-resource]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every selected check
+        env:
+          PLAN: ${{ needs.plan.result }}
+          TIER: ${{ needs.plan.outputs.tier }}
+          NATIVE: ${{ needs.native.result }}
+          RESOURCE: ${{ needs.race-and-resource.result }}
+        run: |
+          test "$PLAN" = success
+          if [ "$TIER" != docs ]; then test "$NATIVE" = success; fi
+          if [ "$TIER" = minor ]; then test "$RESOURCE" = success; fi
