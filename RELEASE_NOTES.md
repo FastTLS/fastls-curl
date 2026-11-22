@@ -1,3 +1,5 @@
+fcurl v0.2.2 pins imitate v0.1.3 with verified Windows Chrome 158, Edge 158 and Firefox 160 profiles. Use explicit --profile canonical IDs; existing defaults are preserved. Five-platform runtime/install checks, Linux race and five-minute resource checks passed in run 44999612010. This data update does not change transport or Cookie mechanisms.
+
 fcurl v0.2.1 fixes two single-request compatibility issues.
 
 - --data-urlencode now gives '=' precedence over '@': a@b=c is sent as a field instead of opening b=c as a file.
