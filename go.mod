@@ -7,7 +7,7 @@ toolchain go1.26.10
 require (
 	github.com/FastTLS/fastls v0.2.1
 	github.com/FastTLS/fastls/profile v0.1.1
-	github.com/FastTLS/imitate v0.1.2
+	github.com/FastTLS/imitate v0.1.3
 	golang.org/x/net v0.61.0
 )
 
