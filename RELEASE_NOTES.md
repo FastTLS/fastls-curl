@@ -1,3 +1,5 @@
+fcurl v0.2.3 reports the linked imitate version dynamically. The v0.2.2 executable already linked imitate v0.1.3 and used the updated data, but its --version description still contained a hard-coded 0.1.2 string. Published v0.2.2 assets and tags are retained.
+
 fcurl v0.2.2 pins imitate v0.1.3 with verified Windows Chrome 158, Edge 158 and Firefox 160 profiles. Use explicit --profile canonical IDs; existing defaults are preserved. Five-platform runtime/install checks, Linux race and five-minute resource checks passed in run 44999612010. This data update does not change transport or Cookie mechanisms.
 
 fcurl v0.2.1 fixes two single-request compatibility issues.
