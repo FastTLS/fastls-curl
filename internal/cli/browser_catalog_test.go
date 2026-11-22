@@ -4,8 +4,16 @@ import (
 	"context"
 	"github.com/FastTLS/fastls/profile"
 	generators "github.com/FastTLS/imitate"
+	"strings"
 	"testing"
 )
+
+func TestReportedGeneratorVersionMatchesDeliveredCatalog(t *testing.T) {
+	code, stdout, stderr := invoke("--version")
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "imitate "+generators.Version+")") {
+		t.Fatalf("version output does not identify the linked generator: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
 
 func TestDeliveredBrowserCatalog(t *testing.T) {
 	cases := map[string]string{

@@ -22,7 +22,7 @@ import (
 	generators "github.com/FastTLS/imitate"
 )
 
-var Version = "0.2.2"
+var Version = "0.2.3"
 
 const help = `fcurl - HTTP requests with fastls TLS and HTTP fingerprints
 Usage: fcurl [options] <http(s)://URL>
@@ -93,7 +93,7 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.
 		case o.help:
 			_, err = io.WriteString(stdout, help)
 		case o.version:
-			_, err = fmt.Fprintf(stdout, "fcurl %s (fastls 0.2.1; imitate 0.1.2)\n", Version)
+			_, err = fmt.Fprintf(stdout, "fcurl %s (fastls 0.2.1; imitate %s)\n", Version, generators.Version)
 		case o.list:
 			var ids []string
 			ids, err = generators.New().List()
